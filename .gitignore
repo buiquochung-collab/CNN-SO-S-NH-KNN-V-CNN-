@@ -1,0 +1,18 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Large Model files (Exceeding GitHub 100MB limit)
+models/*.pth
+
+# Evaluation results
+models/*.png
+result_prediction.png
+
+# User test images
+my_test_images/
