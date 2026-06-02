@@ -12,8 +12,8 @@ def extract_hog_features(image):
     Đây là phương pháp kinh điển thường đi kèm với KNN / SVM.
     """
     hog = cv2.HOGDescriptor()
-    # Chuyển ảnh về kích thước cố định (ví dụ 64x128 cho HOG chuẩn hoặc 64x64)
-    resized_img = cv2.resize(image, (64, 64))
+    # Chuyển ảnh về kích thước cố định (64x128 cho HOG chuẩn)
+    resized_img = cv2.resize(image, (64, 128))
     if len(resized_img.shape) == 3:
         resized_img = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
     features = hog.compute(resized_img)
