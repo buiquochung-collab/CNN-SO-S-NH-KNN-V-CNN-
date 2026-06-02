@@ -16,3 +16,13 @@ result_prediction.png
 
 # User test images
 my_test_images/
+
+# Virtual Environment
+venv/
+.env
+
+# Dataset
+dataset/
+
+# Model formats
+models/*.pkl

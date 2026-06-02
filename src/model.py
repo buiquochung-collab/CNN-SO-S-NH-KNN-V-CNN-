@@ -139,6 +139,24 @@ def get_multi_scale_detector(num_classes, backbone_name='resnet50'):
     
     return model
 
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+
+def get_standard_detector(num_classes):
+    """
+    Khởi tạo mô hình Faster R-CNN nguyên bản (Standard CNN) để so sánh.
+    Sử dụng ResNet50 + FPN chuẩn của PyTorch.
+    """
+    # Load model pre-trained trên COCO
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights='DEFAULT')
+    
+    # Lấy số lượng input features của bộ phân loại
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    
+    # Thay thế phần head để dự đoán số class của bài toán hiện tại
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    
+    return model
+
 if __name__ == "__main__":
     # Test mô hình nhanh
     model = get_multi_scale_detector(num_classes=10)
