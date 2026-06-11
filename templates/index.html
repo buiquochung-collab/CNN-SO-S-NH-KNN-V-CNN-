@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Comparison Dashboard</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --card-bg: rgba(26, 32, 44, 0.65);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-cyan: #00d4ff;
+            --accent-purple: #7b2ff7;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --color-knn: #ffd93d;
+            --color-cnn-base: #6bcb77;
+            --color-cnn-multi: #00d4ff;
+            --color-loss: #ff6b6b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 10% 20%, rgba(123, 47, 247, 0.15) 0%, transparent 40%),
+                              radial-gradient(circle at 90% 80%, rgba(0, 212, 255, 0.15) 0%, transparent 40%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 2rem;
+            overflow-x: hidden;
+        }
+
+        /* Container Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Common Glassmorphism Card style */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 212, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 212, 255, 0.05);
+        }
+
+        /* Header Style */
+        header {
+            grid-column: 1 / -1;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #00d4ff, #7b2ff7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        /* LEFT SIDE - Dashboard */
+        .dashboard-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .tab-buttons {
+            display: flex;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 0.3rem;
+            margin-bottom: 1rem;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            padding: 0.8rem;
+            cursor: pointer;
+            border-radius: 9px;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease forwards;
+            min-height: 350px;
+            position: relative;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Early Stopping Cards Container */
+        .es-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .es-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .es-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 250px;
+        }
+
+        .es-card-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.5rem;
+        }
+
+        .es-badge {
+            display: inline-block;
+            align-self: flex-start;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .badge-gray { background: #4b5563; color: #f3f4f6; }
+        .badge-green { background: rgba(107, 203, 119, 0.2); color: #6bcb77; border: 1px solid #6bcb77; }
+        .badge-orange { background: rgba(255, 137, 30, 0.2); color: #ff891e; border: 1px solid #ff891e; }
+
+        .es-info {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .es-info strong {
+            color: var(--text-main);
+        }
+
+        .progress-container {
+            width: 100%;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .progress-bar-bg {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            height: 8px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            width: 0%;
+            transition: width 0.8s ease;
+        }
+
+        .fill-cyan { background: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan); }
+        .fill-green { background: #6bcb77; box-shadow: 0 0 8px #6bcb77; }
+        .fill-purple { background: var(--accent-purple); box-shadow: 0 0 8px var(--accent-purple); }
+
+        /* RIGHT SIDE - Prediction Component */
+        .prediction-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .predict-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 1rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-left: 4px solid var(--accent-cyan);
+            padding-left: 0.8rem;
+        }
+
+        /* Drag & Drop Upload Zone */
+        .upload-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.01);
+            transition: all 0.3s ease;
+            position: relative;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.02);
+            box-shadow: inset 0 0 20px rgba(0, 212, 255, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+            color: var(--accent-cyan);
+            margin-bottom: 0.8rem;
+            animation: pulse 2rem infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); }
+        }
+
+        .upload-text {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .upload-hint {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .image-preview {
+            width: 100%;
+            max-height: 250px;
+            object-fit: contain;
+            border-radius: 8px;
+            display: none;
+            margin-top: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hidden-input {
+            display: none;
+        }
+
+        /* Action Buttons */
+        .action-btn {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            padding: 1rem;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(123, 47, 247, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .action-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .action-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #4b5563;
+            box-shadow: none;
+        }
+
+        /* Results Display Cards */
+        .results-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .res-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.2rem;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .res-card.highlight {
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            background: linear-gradient(90deg, rgba(0, 212, 255, 0.03) 0%, rgba(255, 255, 255, 0.02) 100%);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
+        }
+
+        .res-icon {
+            font-size: 2.2rem;
+            line-height: 1;
+        }
+
+        .res-body {
+            flex: 1;
+        }
+
+        .res-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.4rem;
+        }
+
+        .res-model-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .res-best-badge {
+            background: linear-gradient(135deg, #ffd93d, #ff891e);
+            color: #000000;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 5px rgba(255, 137, 30, 0.3);
+        }
+
+        .res-class-name {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .res-class-name span {
+            color: var(--accent-cyan);
+        }
+
+        .confidence-row {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .confidence-bar-bg {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            height: 6px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .confidence-bar-fill {
+            height: 100%;
+            background: var(--accent-cyan);
+            width: 0%;
+            transition: width 0.5s ease-out;
+        }
+
+        .confidence-val {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            width: 40px;
+            text-align: right;
+        }
+
+        /* Loading Spinner */
+        .spinner-container {
+            display: none;
+            text-align: center;
+            padding: 1.5rem;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border-left-color: var(--accent-cyan);
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.15);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spinner-text {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        /* Warning/Notification Alert */
+        .alert-box {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 12px;
+            padding: 1rem;
+            color: #fca5a5;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            display: none;
+            align-items: flex-start;
+            gap: 0.8rem;
+            line-height: 1.5;
+        }
+
+        .alert-icon {
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .placeholder-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.15);
+            font-size: 1.1rem;
+            font-weight: 500;
+            text-align: center;
+            width: 80%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>📊 Model Training Comparison</h1>
+        <p class="subtitle">Nhận dạng vật thể nhỏ với CNN đa tỉ lệ, CNN Base và mô hình KNN</p>
+    </header>
+
+    <div class="container">
+        
+        <!-- LEFT PANEL - Dashboard (60%) -->
+        <section class="dashboard-section">
+            <div class="card" style="flex: 1;">
+                
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchTab(event, 'loss-tab')">Loss Curve</button>
+                    <button class="tab-btn" onclick="switchTab(event, 'accuracy-tab')">Accuracy Curve</button>
+                    <button class="tab-btn" onclick="switchTab(event, 'earlystop-tab')">Early Stopping</button>
+                    <button class="tab-btn" onclick="switchTab(event, 'confusion-tab')">Confusion Matrix</button>
+                    <button class="tab-btn" onclick="switchTab(event, 'correlation-tab')">Correlation Matrix</button>
+                </div>
+
+                <!-- Tab 1: Loss Curve -->
+                <div id="loss-tab" class="tab-content active">
+                    <div style="height: 380px; position: relative;">
+                        <canvas id="lossChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Accuracy Curve -->
+                <div id="accuracy-tab" class="tab-content">
+                    <div style="height: 380px; position: relative;">
+                        <canvas id="accuracyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Early Stopping -->
+                <div id="earlystop-tab" class="tab-content">
+                    <div class="es-container">
+                        
+                        <!-- KNN Card -->
+                        <div class="es-card">
+                            <div>
+                                <h3 class="es-card-title">KNN (scikit-learn)</h3>
+                                <span class="es-badge badge-gray">No Early Stopping</span>
+                                <div class="es-info">
+                                    Không áp dụng kỹ thuật dừng sớm đối với thuật toán KNN truyền thống.<br>
+                                    Độ chính xác tốt nhất trên tập Validation: <strong id="es-knn-acc">N/A</strong>
+                                </div>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span>Patience: N/A</span>
+                                    <span>0%</span>
+                                </div>
+                                <div class="progress-bar-bg">
+                                    <div class="progress-bar-fill fill-purple" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CNN Base Card -->
+                        <div class="es-card">
+                            <div>
+                                <h3 class="es-card-title">CNN Base</h3>
+                                <span class="es-badge badge-green" id="es-cnn-badge">ACTIVE</span>
+                                <div class="es-info">
+                                    Trạng thái dừng tại: <strong id="es-cnn-epoch">N/A</strong><br>
+                                    Best Val Loss: <strong id="es-cnn-loss">N/A</strong><br>
+                                    Best Val Acc: <strong id="es-cnn-acc">N/A</strong>
+                                </div>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span id="es-cnn-patience-txt">Patience: 0/3</span>
+                                    <span id="es-cnn-patience-pct">0%</span>
+                                </div>
+                                <div class="progress-bar-bg">
+                                    <div class="progress-bar-fill fill-green" id="es-cnn-bar"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CNN Multiscale Card -->
+                        <div class="es-card">
+                            <div>
+                                <h3 class="es-card-title">CNN Multiscale</h3>
+                                <span class="es-badge badge-orange" id="es-multi-badge">ACTIVE</span>
+                                <div class="es-info">
+                                    Trạng thái dừng tại: <strong id="es-multi-epoch">N/A</strong><br>
+                                    Best Val Loss: <strong id="es-multi-loss">N/A</strong><br>
+                                    Accuracy: <strong>N/A (Object Detection)</strong>
+                                </div>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-label">
+                                    <span id="es-multi-patience-txt">Patience: 0/5</span>
+                                    <span id="es-multi-patience-pct">0%</span>
+                                </div>
+                                <div class="progress-bar-bg">
+                                    <div class="progress-bar-fill fill-cyan" id="es-multi-bar"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Tab 4: Confusion Matrix -->
+                <div id="confusion-tab" class="tab-content">
+                    <div style="text-align: center; padding: 10px;">
+                        <p style="margin-bottom: 15px; color: #9ca3af; font-family: 'Rajdhani', sans-serif;">Ma trận nhầm lẫn (Confusion Matrix) của các mô hình trên tập Test</p>
+                        
+                        <div id="confusion-placeholder" class="placeholder-card" style="padding: 40px; text-align: center; border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.02);">
+                            <p style="color: #ffd93d; font-weight: bold; font-size: 16px; margin-bottom: 10px;">⚠️ CHƯA CÓ DỮ LIỆU THỰC TẾ</p>
+                            <p style="color: #9ca3af; font-size: 14px;">Ma trận nhầm lẫn sẽ được hiển thị sau khi bạn chạy huấn luyện bằng lệnh:</p>
+                            <code style="background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 4px; color: #00d4ff; font-family: monospace; display: inline-block; margin-top: 10px;">python compare_models.py</code>
+                        </div>
+                        
+                        <img id="confusion-img" src="" alt="Confusion Matrices" style="display: none; max-width: 100%; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);">
+                    </div>
+                </div>
+
+                <!-- Tab 5: Correlation Matrix -->
+                <div id="correlation-tab" class="tab-content">
+                    <div style="text-align: center; padding: 10px;">
+                        <p style="margin-bottom: 15px; color: #9ca3af; font-family: 'Rajdhani', sans-serif;">Biểu đồ tương quan dự đoán (Prediction Correlation Heatmap) giữa 3 mô hình</p>
+                        
+                        <div id="correlation-placeholder" class="placeholder-card" style="padding: 40px; text-align: center; border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px; background: rgba(255,255,255,0.02);">
+                            <p style="color: #ffd93d; font-weight: bold; font-size: 16px; margin-bottom: 10px;">⚠️ CHƯA CÓ DỮ LIỆU THỰC TẾ</p>
+                            <p style="color: #9ca3af; font-size: 14px;">Biểu đồ tương quan sẽ được hiển thị sau khi bạn chạy huấn luyện bằng lệnh:</p>
+                            <code style="background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 4px; color: #00d4ff; font-family: monospace; display: inline-block; margin-top: 10px;">python compare_models.py</code>
+                        </div>
+                        
+                        <img id="correlation-img" src="" alt="Correlation Matrix" style="display: none; max-height: 380px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);">
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL - Upload & Predict (40%) -->
+        <section class="prediction-section">
+            <div class="card">
+                <h2 class="predict-title">🔍 Upload & Predict</h2>
+                
+                <!-- Upload Drop Zone -->
+                <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                    <div class="upload-icon">📤</div>
+                    <p class="upload-text" id="upload-main-text">Kéo thả ảnh vào đây hoặc Click để tải lên</p>
+                    <p class="upload-hint" id="upload-sub-text">Hỗ trợ các file JPG, JPEG, PNG</p>
+                    <img id="preview-img" class="image-preview" alt="Preview Image">
+                    <input type="file" id="file-input" class="hidden-input" accept="image/*" onchange="handleFileSelect(event)">
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <button class="action-btn" id="run-btn" onclick="runPrediction()" disabled>
+                        <span>🚀</span> Run All Models
+                    </button>
+                </div>
+
+                <!-- Warning Box -->
+                <div class="alert-box" id="warning-box">
+                    <span class="alert-icon">⚠️</span>
+                    <div id="warning-text">Model chưa được train, hãy chạy compare_models.py trước</div>
+                </div>
+
+                <!-- Spinner -->
+                <div class="spinner-container" id="loading-spinner">
+                    <div class="spinner"></div>
+                    <div class="spinner-text">Đang phân tích ảnh qua 3 mô hình...</div>
+                </div>
+
+                <!-- Results Display Cards -->
+                <div class="results-container" id="results-display" style="display: none;">
+                    
+                    <!-- KNN -->
+                    <div class="res-card">
+                        <div class="res-icon">🔵</div>
+                        <div class="res-body">
+                            <div class="res-header-row">
+                                <span class="res-model-name" style="color: var(--color-knn);">KNN Model (scikit-learn)</span>
+                            </div>
+                            <div class="res-class-name">Dự đoán: <span id="knn-class">...</span></div>
+                            <div class="confidence-row">
+                                <div class="confidence-bar-bg">
+                                    <div class="confidence-bar-fill" id="knn-conf-bar" style="background-color: var(--color-knn);"></div>
+                                </div>
+                                <span class="confidence-val" id="knn-conf-val">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CNN Base -->
+                    <div class="res-card">
+                        <div class="res-icon">🟢</div>
+                        <div class="res-body">
+                            <div class="res-header-row">
+                                <span class="res-model-name" style="color: var(--color-cnn-base);">CNN Base (Image Classification)</span>
+                            </div>
+                            <div class="res-class-name">Dự đoán: <span id="cnn-base-class">...</span></div>
+                            <div class="confidence-row">
+                                <div class="confidence-bar-bg">
+                                    <div class="confidence-bar-fill" id="cnn-base-conf-bar" style="background-color: var(--color-cnn-base);"></div>
+                                </div>
+                                <span class="confidence-val" id="cnn-base-conf-val">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CNN Multiscale -->
+                    <div class="res-card highlight">
+                        <div class="res-icon">🟠</div>
+                        <div class="res-body">
+                            <div class="res-header-row">
+                                <span class="res-model-name" style="color: var(--color-cnn-multi);">CNN Multiscale + FPN (Detector)</span>
+                                <span class="res-best-badge">⭐ Best Model</span>
+                            </div>
+                            <div class="res-class-name">Dự đoán: <span id="cnn-multi-class">...</span> <span id="cnn-multi-boxes" style="font-size: 0.85rem; color: var(--text-muted);"></span></div>
+                            <div class="confidence-row">
+                                <div class="confidence-bar-bg">
+                                    <div class="confidence-bar-fill" id="cnn-multi-conf-bar" style="background-color: var(--color-cnn-multi);"></div>
+                                </div>
+                                <span class="confidence-val" id="cnn-multi-conf-val">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        let isTrained = false;
+        let selectedFile = null;
+        let lossChartObj = null;
+        let accuracyChartObj = null;
+
+        // Tải dữ liệu khi load trang
+        window.addEventListener('DOMContentLoaded', () => {
+            setupDragAndDrop();
+            fetchResults();
+        });
+
+        // ------------------------------------------
+        // 1. Quản lý Tabs
+        // ------------------------------------------
+        function switchTab(evt, tabId) {
+            const tabcontents = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabcontents.length; i++) {
+                tabcontents[i].classList.remove("active");
+            }
+
+            const tablinks = document.getElementsByClassName("tab-btn");
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].classList.remove("active");
+            }
+
+            document.getElementById(tabId).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+
+        // ------------------------------------------
+        // 2. Fetch kết quả từ API / Dữ liệu mẫu giả lập
+        // ------------------------------------------
+        function fetchResults() {
+            fetch('/api/results')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Chưa được train");
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    isTrained = true;
+                    hideWarning();
+                    renderCharts(data);
+                    renderEarlyStopping(data);
+
+                    // Cập nhật biểu đồ ảnh thực tế
+                    const timestamp = new Date().getTime();
+                    document.getElementById('confusion-img').src = '/results/confusion_matrices.png?t=' + timestamp;
+                    document.getElementById('correlation-img').src = '/results/correlation_matrix.png?t=' + timestamp;
+
+                    document.getElementById('confusion-placeholder').style.display = 'none';
+                    document.getElementById('confusion-img').style.display = 'inline-block';
+                    document.getElementById('correlation-placeholder').style.display = 'none';
+                    document.getElementById('correlation-img').style.display = 'inline-block';
+                })
+                .catch(err => {
+                    console.log("Sử dụng dữ liệu mẫu giả lập để mô phỏng giao diện.");
+                    isTrained = false;
+                    showWarning("Lưu ý: Bạn chưa chạy huấn luyện so sánh mô hình, hiện đang hiển thị Dữ liệu giả lập 10 epoch.");
+                    const mockData = getMockData();
+                    renderCharts(mockData);
+                    renderEarlyStopping(mockData);
+
+                    // Ẩn ảnh và hiển thị placeholder thông báo
+                    document.getElementById('confusion-img').style.display = 'none';
+                    document.getElementById('confusion-placeholder').style.display = 'block';
+                    document.getElementById('correlation-img').style.display = 'none';
+                    document.getElementById('correlation-placeholder').style.display = 'block';
+                });
+        }
+
+        function showWarning(text) {
+            const warningBox = document.getElementById('warning-box');
+            const warningText = document.getElementById('warning-text');
+            warningText.innerText = text;
+            warningBox.style.display = 'flex';
+        }
+
+        function hideWarning() {
+            document.getElementById('warning-box').style.display = 'none';
+        }
+
+        // ------------------------------------------
+        // 3. Xử lý Drag & Drop và Chọn File
+        // ------------------------------------------
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('drop-zone');
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('dragover');
+                }, false);
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    processFile(files[0]);
+                }
+            }, false);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function processFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Vui lòng chọn một tệp hình ảnh hợp lệ.');
+                return;
+            }
+            selectedFile = file;
+
+            // Hiển thị preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewImg = document.getElementById('preview-img');
+                previewImg.src = e.target.result;
+                previewImg.style.display = 'block';
+
+                // Ẩn văn bản hướng dẫn
+                document.getElementById('upload-main-text').style.display = 'none';
+                document.getElementById('upload-sub-text').style.display = 'none';
+                document.querySelector('.upload-icon').style.display = 'none';
+                
+                // Mở khóa nút dự đoán
+                document.getElementById('run-btn').removeAttribute('disabled');
+            }
+            reader.readAsDataURL(file);
+        }
+
+        // ------------------------------------------
+        // 4. Kích hoạt dự đoán qua mô hình
+        // ------------------------------------------
+        function runPrediction() {
+            if (!selectedFile) return;
+
+            // Reset UI
+            document.getElementById('results-display').style.display = 'none';
+            document.getElementById('loading-spinner').style.display = 'block';
+            hideWarning();
+
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+
+            fetch('/api/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error || "Lỗi dự đoán") });
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('loading-spinner').style.display = 'none';
+                displayPredictionResults(data);
+            })
+            .catch(err => {
+                document.getElementById('loading-spinner').style.display = 'none';
+                showWarning(err.message || "Model chưa được train, hãy chạy compare_models.py trước.");
+                
+                // Giả lập kết quả dự đoán nếu không chạy được API thật (cho mục đích Demo frontend)
+                if (err.message.includes("Model chưa được train")) {
+                    setTimeout(() => {
+                        const mockPredict = {
+                            "knn": {"class": "Car", "confidence": 0.80},
+                            "cnn_base": {"class": "Car", "confidence": 0.92},
+                            "cnn_multiscale": {"class": "Car", "confidence": 0.98, "box_count": 8}
+                        };
+                        displayPredictionResults(mockPredict);
+                        showWarning("Mô phỏng: Đang hiển thị kết quả dự đoán giả lập do chưa chạy compare_models.py.");
+                    }, 500);
+                }
+            });
+        }
+
+        function displayPredictionResults(data) {
+            document.getElementById('results-display').style.display = 'flex';
+
+            // 1. KNN
+            const knn = data.knn;
+            if (knn.error) {
+                document.getElementById('knn-class').innerText = "Lỗi";
+                document.getElementById('knn-conf-val').innerText = "0%";
+                document.getElementById('knn-conf-bar').style.width = "0%";
+            } else {
+                document.getElementById('knn-class').innerText = knn.class;
+                document.getElementById('knn-conf-val').innerText = (knn.confidence * 100).toFixed(0) + "%";
+                document.getElementById('knn-conf-bar').style.width = (knn.confidence * 100) + "%";
+            }
+
+            // 2. CNN Base
+            const base = data.cnn_base;
+            if (base.error) {
+                document.getElementById('cnn-base-class').innerText = "Lỗi";
+                document.getElementById('cnn-base-conf-val').innerText = "0%";
+                document.getElementById('cnn-base-conf-bar').style.width = "0%";
+            } else {
+                document.getElementById('cnn-base-class').innerText = base.class;
+                document.getElementById('cnn-base-conf-val').innerText = (base.confidence * 100).toFixed(0) + "%";
+                document.getElementById('cnn-base-conf-bar').style.width = (base.confidence * 100) + "%";
+            }
+
+            // 3. CNN Multiscale
+            const multi = data.cnn_multiscale;
+            if (multi.error) {
+                document.getElementById('cnn-multi-class').innerText = "Lỗi";
+                document.getElementById('cnn-multi-conf-val').innerText = "0%";
+                document.getElementById('cnn-multi-conf-bar').style.width = "0%";
+                document.getElementById('cnn-multi-boxes').innerText = "";
+            } else {
+                document.getElementById('cnn-multi-class').innerText = multi.class;
+                document.getElementById('cnn-multi-conf-val').innerText = (multi.confidence * 100).toFixed(0) + "%";
+                document.getElementById('cnn-multi-conf-bar').style.width = (multi.confidence * 100) + "%";
+                if (multi.box_count !== undefined && multi.box_count > 0) {
+                    document.getElementById('cnn-multi-boxes').innerText = `(Phát hiện ${multi.box_count} xe)`;
+                } else {
+                    document.getElementById('cnn-multi-boxes').innerText = "";
+                }
+            }
+        }
+
+        // ------------------------------------------
+        // 5. Vẽ đồ thị bằng Chart.js
+        // ------------------------------------------
+        function renderCharts(data) {
+            // Chart.js global config
+            Chart.defaults.color = '#9ca3af';
+            Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
+
+            // --- CHART 1: LOSS CURVE ---
+            const ctxLoss = document.getElementById('lossChart').getContext('2d');
+            
+            const epochsBase = data.cnn_base.train_loss.length;
+            const epochsMulti = data.cnn_multiscale.train_loss.length;
+            const maxEpochs = Math.max(epochsBase, epochsMulti);
+            const labels = Array.from({length: maxEpochs}, (_, i) => `Epoch ${i + 1}`);
+
+            if (lossChartObj) lossChartObj.destroy();
+            
+            lossChartObj = new Chart(ctxLoss, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'CNN Base (Train Loss)',
+                            data: data.cnn_base.train_loss,
+                            borderColor: '#ff6b6b',
+                            backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                            borderWidth: 2.5,
+                            tension: 0.2,
+                            fill: true
+                        },
+                        {
+                            label: 'CNN Base (Val Loss)',
+                            data: data.cnn_base.val_loss,
+                            borderColor: '#ffd2d2',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0.2
+                        },
+                        {
+                            label: 'CNN Multiscale (Train Loss)',
+                            data: data.cnn_multiscale.train_loss,
+                            borderColor: '#00d4ff',
+                            backgroundColor: 'rgba(0, 212, 255, 0.08)',
+                            borderWidth: 2.5,
+                            tension: 0.2,
+                            fill: true
+                        },
+                        {
+                            label: 'CNN Multiscale (Val Loss)',
+                            data: data.cnn_multiscale.val_loss,
+                            borderColor: '#a3f0ff',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0.2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { family: 'Rajdhani', size: 13, weight: 600 } } }
+                    },
+                    scales: {
+                        y: { title: { display: true, text: 'Loss' } },
+                        x: { title: { display: true, text: 'Epoch' } }
+                    }
+                }
+            });
+
+            // --- CHART 2: ACCURACY CURVE ---
+            const ctxAcc = document.getElementById('accuracyChart').getContext('2d');
+            const labelsAcc = Array.from({length: data.knn.train_acc.length}, (_, i) => `Step ${i + 1}`);
+
+            if (accuracyChartObj) accuracyChartObj.destroy();
+            
+            accuracyChartObj = new Chart(ctxAcc, {
+                type: 'line',
+                data: {
+                    labels: labelsAcc,
+                    datasets: [
+                        {
+                            label: 'KNN learning curve (Train Acc)',
+                            data: data.knn.train_acc,
+                            borderColor: '#ffd93d',
+                            backgroundColor: 'rgba(255, 217, 61, 0.05)',
+                            borderWidth: 2,
+                            tension: 0.2
+                        },
+                        {
+                            label: 'KNN (Val Acc)',
+                            data: data.knn.val_acc,
+                            borderColor: '#fff0a3',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            tension: 0.2
+                        },
+                        {
+                            label: 'CNN Base (Train Acc)',
+                            data: data.cnn_base.train_acc,
+                            borderColor: '#6bcb77',
+                            backgroundColor: 'rgba(107, 203, 119, 0.08)',
+                            borderWidth: 2.5,
+                            tension: 0.2,
+                            fill: true
+                        },
+                        {
+                            label: 'CNN Base (Val Acc)',
+                            data: data.cnn_base.val_acc,
+                            borderColor: '#b4eebc',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0.2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { family: 'Rajdhani', size: 13, weight: 600 } } }
+                    },
+                    scales: {
+                        y: { title: { display: true, text: 'Accuracy' }, min: 0.0, max: 1.05 },
+                        x: { title: { display: true, text: 'Training Steps / Epochs' } }
+                    }
+                }
+            });
+        }
+
+        // ------------------------------------------
+        // 6. Cập nhật thẻ Early Stopping
+        // ------------------------------------------
+        function renderEarlyStopping(data) {
+            // 1. KNN
+            const knnBestValAcc = data.knn.val_acc[data.knn.val_acc.length - 1];
+            document.getElementById('es-knn-acc').innerText = (knnBestValAcc * 100).toFixed(1) + "%";
+
+            // 2. CNN Base (Patience = 3)
+            const cnnBaseEpochs = data.cnn_base.train_loss.length;
+            const cnnBaseStopped = data.cnn_base.early_stop_epoch;
+            const bestBaseValAcc = Math.max(...data.cnn_base.val_acc);
+            const bestBaseValLoss = Math.min(...data.cnn_base.val_loss);
+            
+            document.getElementById('es-cnn-acc').innerText = (bestBaseValAcc * 100).toFixed(1) + "%";
+            document.getElementById('es-cnn-loss').innerText = bestBaseValLoss.toFixed(4);
+
+            const cnnBadge = document.getElementById('es-cnn-badge');
+            const cnnEpoch = document.getElementById('es-cnn-epoch');
+            const cnnBar = document.getElementById('es-cnn-bar');
+            const cnnPatienceTxt = document.getElementById('es-cnn-patience-txt');
+            const cnnPatiencePct = document.getElementById('es-cnn-patience-pct');
+
+            if (cnnBaseStopped < 10) {
+                cnnBadge.className = "es-badge badge-green";
+                cnnBadge.innerText = `STOPPED AT EPOCH ${cnnBaseStopped}`;
+                cnnEpoch.innerText = `Epoch ${cnnBaseStopped}`;
+                // Đã kích hoạt dừng, nghĩa là patience đạt max 3/3
+                cnnBar.style.width = "100%";
+                cnnPatienceTxt.innerText = "Patience: 3/3";
+                cnnPatiencePct.innerText = "100%";
+            } else {
+                cnnBadge.className = "es-badge badge-gray";
+                cnnBadge.innerText = "COMPLETED";
+                cnnEpoch.innerText = "Không dừng (Đủ 10 Epochs)";
+                
+                // Tính toán patience thực tế ở epoch cuối
+                // Kiểm tra xem khoảng cách từ best epoch đến epoch cuối là bao nhiêu
+                const minLossIdx = data.cnn_base.val_loss.indexOf(bestBaseValLoss);
+                const patienceUsed = cnnBaseEpochs - 1 - minLossIdx;
+                const patiencePct = ((patienceUsed / 3) * 100).toFixed(0);
+                
+                cnnBar.style.width = patiencePct + "%";
+                cnnPatienceTxt.innerText = `Patience: ${patienceUsed}/3`;
+                cnnPatiencePct.innerText = patiencePct + "%";
+            }
+
+            // 3. CNN Multiscale (Patience = 5)
+            const cnnMultiEpochs = data.cnn_multiscale.train_loss.length;
+            const cnnMultiStopped = data.cnn_multiscale.early_stop_epoch;
+            const bestMultiValLoss = Math.min(...data.cnn_multiscale.val_loss);
+
+            document.getElementById('es-multi-loss').innerText = bestMultiValLoss.toFixed(4);
+
+            const multiBadge = document.getElementById('es-multi-badge');
+            const multiEpoch = document.getElementById('es-multi-epoch');
+            const multiBar = document.getElementById('es-multi-bar');
+            const multiPatienceTxt = document.getElementById('es-multi-patience-txt');
+            const multiPatiencePct = document.getElementById('es-multi-patience-pct');
+
+            // Do chúng ta chạy 2 epoch cho CNN Multiscale, nên thường sẽ là COMPLETED
+            if (cnnMultiStopped < 2) {
+                multiBadge.className = "es-badge badge-orange";
+                multiBadge.innerText = `STOPPED AT EPOCH ${cnnMultiStopped}`;
+                multiEpoch.innerText = `Epoch ${cnnMultiStopped}`;
+                multiBar.style.width = "100%";
+                multiPatienceTxt.innerText = "Patience: 5/5";
+                multiPatiencePct.innerText = "100%";
+            } else {
+                multiBadge.className = "es-badge badge-gray";
+                multiBadge.innerText = "COMPLETED";
+                multiEpoch.innerText = `Không dừng (Đủ ${cnnMultiEpochs} Epochs)`;
+                
+                const minLossIdx = data.cnn_multiscale.val_loss.indexOf(bestMultiValLoss);
+                const patienceUsed = cnnMultiEpochs - 1 - minLossIdx;
+                const patiencePct = ((patienceUsed / 5) * 100).toFixed(0);
+                
+                multiBar.style.width = patiencePct + "%";
+                multiPatienceTxt.innerText = `Patience: ${patienceUsed}/5`;
+                multiPatiencePct.innerText = patiencePct + "%";
+            }
+        }
+
+        // ------------------------------------------
+        // 7. Tạo dữ liệu mẫu nếu chưa train
+        // ------------------------------------------
+        function getMockData() {
+            return {
+                "knn": {
+                    "train_acc": [0.65, 0.70, 0.73, 0.75, 0.77, 0.78, 0.80, 0.81, 0.82, 0.83],
+                    "val_acc": [0.62, 0.68, 0.70, 0.72, 0.74, 0.75, 0.76, 0.77, 0.78, 0.78],
+                    "epochs": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                },
+                "cnn_base": {
+                    "train_loss": [0.693, 0.650, 0.580, 0.510, 0.450, 0.400, 0.350, 0.310, 0.280, 0.250],
+                    "val_loss": [0.670, 0.610, 0.540, 0.490, 0.460, 0.430, 0.410, 0.420, 0.435, 0.450],
+                    "train_acc": [0.55, 0.62, 0.71, 0.78, 0.82, 0.85, 0.88, 0.90, 0.92, 0.94],
+                    "val_acc": [0.58, 0.64, 0.72, 0.77, 0.79, 0.81, 0.83, 0.82, 0.82, 0.81],
+                    "early_stop_epoch": 7 // Dừng ở epoch 7 vì val_loss tăng từ epoch 7
+                },
+                "cnn_multiscale": {
+                    "train_loss": [1.680, 0.643],
+                    "val_loss": [1.450, 0.580],
+                    "early_stop_epoch": 2
+                }
+            };
+        }
+    </script>
+</body>
+</html>
